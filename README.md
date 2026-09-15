@@ -1,5 +1,7 @@
 # Race Segment Scores
 
+[⬇ Download Race Segment Scores](https://github.com/btrad13/points-race-scoring/archive/refs/heads/main.zip)
+
 `Race Segment Scores` is a live Sauce for Zwift overlay that follows the current ZRL points-race model for every completed segment crossing in your current group race:
 
 - **FTS** — the 10 fastest attempts on each individual segment across the entire race. The fixed points are `15, 12, 10, 8, 6, 5, 4, 3, 2, 1`. A rider can hold more than one top-10 time on a multi-lap route.
