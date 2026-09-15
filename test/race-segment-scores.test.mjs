@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachResults, raceField, scoreInstances, segmentInstances} from '../pages/model.mjs';
+import {attachResults, finishPoints, raceField, scoreInstances, segmentInstances} from '../pages/model.mjs';
 
 test('field uses joined entrants, including their team, and keeps the local rider', () => {
     const field = raceField([{id: 2, athlete: {fullname: 'B Rider', team: 'Fast Cats'}}, {id: 2, athlete: {fullname: 'B Rider'}}], {athleteId: 1, fullname: 'A Rider', team: 'Velocity'});
@@ -33,6 +33,29 @@ test('non-finishers retain their position but their points do not cascade', () =
     ])};
     const {leaderboard} = scoreInstances([instance], racers, new Set(['1', '3']));
     assert.deepEqual(leaderboard.map(x => [x.athleteId, x.fastest, x.first, x.total]), [['1', 15, 3, 18], ['3', 10, 1, 11]]);
+});
+
+test('FIN uses the starter field while PBP awards the top five finishers', () => {
+    const racers = raceField([{id: 1, athlete: {fullname: 'A'}}, {id: 2, athlete: {fullname: 'B'}}, {id: 3, athlete: {fullname: 'C'}}, {id: 4, athlete: {fullname: 'D'}}]);
+    const results = [
+        {profileId: 2, rank: 1, activityData: {endDate: '2026-09-15T10:01:00Z'}},
+        {profileId: 1, rank: 2, activityData: {endDate: '2026-09-15T10:01:01Z'}},
+        {profileId: 4, rank: 3, activityData: {endDate: '2026-09-15T10:01:02Z'}},
+        {profileId: 3, dnf: true},
+    ];
+    assert.deepEqual([...finishPoints(results, racers)], [['2', {finish: 4, podium: 10}], ['1', {finish: 3, podium: 8}], ['4', {finish: 2, podium: 6}]]);
+    const {leaderboard} = scoreInstances([], racers, new Set(['1', '2', '4']), results);
+    assert.deepEqual(leaderboard.map(x => [x.athleteId, x.finish, x.podium, x.total]), [['2', 4, 10, 14], ['1', 3, 8, 11], ['4', 2, 6, 8]]);
+});
+
+test('disabled scoring categories are excluded from the total without changing the race results', () => {
+    const racers = raceField([{id: 1, athlete: {fullname: 'A'}}, {id: 2, athlete: {fullname: 'B'}}]);
+    const instance = {key: '9:1', segmentId: '9', results: new Map([
+        ['1', {athleteId: '1', elapsed: 100, ts: 1000}], ['2', {athleteId: '2', elapsed: 101, ts: 1001}],
+    ])};
+    const official = [{profileId: 1, rank: 1}, {profileId: 2, rank: 2}];
+    const {leaderboard} = scoreInstances([instance], racers, null, official, {scoreFts: false, scoreFal: true, scoreFin: false, scorePbp: false});
+    assert.deepEqual(leaderboard.map(x => [x.athleteId, x.fastest, x.first, x.finish, x.podium, x.total]), [['1', 0, 2, 0, 0, 2], ['2', 0, 1, 0, 0, 1]]);
 });
 
 test('separates repeated segment crossings by event distance and matches their official results', () => {

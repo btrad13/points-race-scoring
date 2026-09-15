@@ -3,8 +3,8 @@
   "name": "Race Segment Scores",
   "description": "Live fastest-through and first-across points for Zwift race segments.",
   "author": "Sauce4ZwiftMod",
-  "website_url": "https://github.com/btrad13/sauce4zwift-hydration-reminder",
-  "version": "0.2.0",
+  "website_url": "https://github.com/btrad13/points-race-scoring",
+  "version": "0.3.0",
   "web_root": "pages",
   "windows": [
     {
@@ -15,7 +15,7 @@
       "overlay": true,
       "frame": false,
       "default_bounds": {
-        "width": 500,
+        "width": 580,
         "height": 600,
         "x": 140,
         "y": 140

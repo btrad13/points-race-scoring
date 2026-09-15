@@ -109,6 +109,8 @@ export function attachResults(instances, resultsBySegment, fieldIds) {
 }
 
 export const FTS_POINTS = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
+export const PODIUM_BONUS_POINTS = [10, 8, 6, 4, 2];
+export const DEFAULT_SCORING = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true};
 
 function falPoints(results, fieldSize) {
     const ordered = [...results.values()].sort((a, b) => Number(a.ts) - Number(b.ts) ||
@@ -136,23 +138,63 @@ function ftsPoints(instances) {
     return points;
 }
 
-export function scoreInstances(instances, racers, eligibleIds = null) {
+function resultPosition(result) {
+    for (const key of ['rank', 'position', 'eventPosition', 'place']) {
+        const value = Number(result?.[key]);
+        if (Number.isInteger(value) && value > 0) return value;
+    }
+    return null;
+}
+
+function resultEndTime(result) {
+    const value = new Date(result?.activityData?.endDate ?? result?.endDate ?? NaN).getTime();
+    return Number.isFinite(value) ? value : Infinity;
+}
+
+// Zwift's final event result gives the crossing order.  Keep the starter-field
+// size when awarding FIN, then add the fixed ZRL podium bonus for the first five.
+export function finishPoints(eventResults, racers) {
+    const fieldIds = new Set(racers.map(racer => racer.athleteId));
+    const finishers = (Array.isArray(eventResults) ? eventResults : []).filter(result =>
+        !result?.dnf && fieldIds.has(String(result?.profileId ?? result?.athleteId))).map(result => ({
+            athleteId: String(result.profileId ?? result.athleteId), position: resultPosition(result), endTime: resultEndTime(result),
+        }));
+    finishers.sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity) || a.endTime - b.endTime ||
+        a.athleteId.localeCompare(b.athleteId));
+    const seen = new Set(), points = new Map();
+    for (const finisher of finishers) {
+        if (seen.has(finisher.athleteId)) continue;
+        seen.add(finisher.athleteId);
+        const index = seen.size - 1;
+        points.set(finisher.athleteId, {finish: Math.max(0, racers.length - index), podium: PODIUM_BONUS_POINTS[index] || 0});
+    }
+    return points;
+}
+
+export function scoreInstances(instances, racers, eligibleIds = null, eventResults = null, scoring = DEFAULT_SCORING) {
+    const enabled = {...DEFAULT_SCORING, ...scoring};
     const fieldSize = racers.length;
     const eligible = eligibleIds && new Set([...eligibleIds].map(String));
-    const totals = new Map(racers.map(racer => [racer.athleteId, {...racer, eligible: !eligible || eligible.has(racer.athleteId), fastest: 0, first: 0, total: 0}]));
+    const totals = new Map(racers.map(racer => [racer.athleteId, {...racer, eligible: !eligible || eligible.has(racer.athleteId), fastest: 0, first: 0, finish: 0, podium: 0, total: 0}]));
     const scored = [];
     for (const instance of instances) {
         const first = falPoints(instance.results, fieldSize);
         if (!first.size) continue;
         scored.push(instance);
         for (const racer of totals.values()) {
-            if (racer.eligible) racer.first += first.get(racer.athleteId) || 0;
+            if (enabled.scoreFal && racer.eligible) racer.first += first.get(racer.athleteId) || 0;
         }
     }
     const fastest = ftsPoints(scored);
+    const finalPoints = finishPoints(eventResults, racers);
     for (const racer of totals.values()) {
-        if (racer.eligible) racer.fastest += fastest.get(racer.athleteId) || 0;
-        racer.total = racer.fastest + racer.first;
+        if (enabled.scoreFts && racer.eligible) racer.fastest += fastest.get(racer.athleteId) || 0;
+        const final = finalPoints.get(racer.athleteId);
+        if (racer.eligible && final) {
+            if (enabled.scoreFin) racer.finish += final.finish;
+            if (enabled.scorePbp) racer.podium += final.podium;
+        }
+        racer.total = racer.fastest + racer.first + racer.finish + racer.podium;
     }
     return {scored, leaderboard: [...totals.values()].filter(racer => racer.eligible).sort((a, b) =>
         b.total - a.total || b.first - a.first || b.fastest - a.fastest || a.name.localeCompare(b.name))};
