@@ -6,7 +6,8 @@ let Common, athlete, stopped = false, updateBusy = false, updateTimer, retryTime
 let sessionKey = null, frozenField = null, latest = {racers: [], scored: [], leaderboard: []};
 let scoringInput = null;
 let filter = '';
-const defaults = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true, leaderboardView: 'riders'};
+let leaderboardView = 'riders';
+const defaults = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true};
 
 function subgroupId() {
     const value = athlete?.state?.eventSubgroupId;
@@ -27,7 +28,7 @@ function scoreAndRender(message) {
 function render(message) {
     $('leaderboard').replaceChildren();
     const {racers, scored, leaderboard} = latest;
-    const teamView = scoringSettings().leaderboardView === 'teams';
+    const teamView = leaderboardView === 'teams';
     const displayed = teamView ? teamLeaderboard(leaderboard) : leaderboard;
     const visible = filterLeaderboard(displayed, filter);
     $('leaderboard-label').textContent = teamView ? 'Team' : 'Rider';
@@ -98,6 +99,17 @@ async function update() {
 
 const onAthlete = value => { athlete = value; update(); };
 $('filter').addEventListener('input', event => { filter = event.target.value; render(); });
+function setLeaderboardView(view) {
+    leaderboardView = view;
+    const teamView = view === 'teams';
+    $('view-riders').classList.toggle('active', !teamView);
+    $('view-riders').setAttribute('aria-pressed', String(!teamView));
+    $('view-teams').classList.toggle('active', teamView);
+    $('view-teams').setAttribute('aria-pressed', String(teamView));
+    render();
+}
+$('view-riders').addEventListener('click', () => setLeaderboardView('riders'));
+$('view-teams').addEventListener('click', () => setLeaderboardView('teams'));
 
 async function start() {
     try {
@@ -106,7 +118,6 @@ async function start() {
         Common.settingsStore.addEventListener('changed', event => {
             const changed = event.data.changed;
             if (['scoreFts', 'scoreFal', 'scoreFin', 'scorePbp'].some(key => changed.has(key))) scoreAndRender();
-            if (changed.has('leaderboardView')) render();
         });
         await Common.subscribe('athlete/self', onAthlete, {persistent: true});
         athlete ||= await Common.rpc.getAthleteData('self').catch(() => null);
