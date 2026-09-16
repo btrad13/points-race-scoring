@@ -1,4 +1,4 @@
-import {attachResults, filterLeaderboard, raceField, scoreInstances, segmentInstances} from './model.mjs';
+import {attachResults, filterLeaderboard, raceField, scoreInstances, segmentInstances, teamLeaderboard} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const demo = new URLSearchParams(location.search).get('demo') === '1';
@@ -6,7 +6,7 @@ let Common, athlete, stopped = false, updateBusy = false, updateTimer, retryTime
 let sessionKey = null, frozenField = null, latest = {racers: [], scored: [], leaderboard: []};
 let scoringInput = null;
 let filter = '';
-const defaults = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true};
+const defaults = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true, leaderboardView: 'riders'};
 
 function subgroupId() {
     const value = athlete?.state?.eventSubgroupId;
@@ -27,7 +27,10 @@ function scoreAndRender(message) {
 function render(message) {
     $('leaderboard').replaceChildren();
     const {racers, scored, leaderboard} = latest;
-    const visible = filterLeaderboard(leaderboard, filter);
+    const teamView = scoringSettings().leaderboardView === 'teams';
+    const displayed = teamView ? teamLeaderboard(leaderboard) : leaderboard;
+    const visible = filterLeaderboard(displayed, filter);
+    $('leaderboard-label').textContent = teamView ? 'Team' : 'Rider';
     $('race-meta').textContent = racers.length ? `${racers.length} racer${racers.length === 1 ? '' : 's'} · ${scored.length} segment crossing${scored.length === 1 ? '' : 's'} scored${filter ? ` · ${visible.length} matching` : ''}` : 'Waiting for a race…';
     $('status').textContent = message || (scored.length ? 'FTS = fastest through · FAL = first across the line' : 'Points appear when the first segment result arrives.');
     if (!visible.length) {
@@ -36,7 +39,7 @@ function render(message) {
         $('leaderboard').append(empty); return;
     }
     visible.forEach(racer => {
-        const row = document.createElement('article'); row.className = `row racer${racer.self ? ' self' : ''}`;
+        const row = document.createElement('article'); row.className = `row racer${racer.self ? ' self' : ''}${teamView ? ' team-row' : ''}`;
         for (const [className, value] of [['place', racer.place], ['name', racer.name], ['fastest', racer.fastest], ['first', racer.first], ['finish', racer.finish], ['podium', racer.podium], ['total', racer.total]]) {
             const cell = document.createElement('span'); cell.className = className; cell.textContent = String(value);
             if (className === 'name' && racer.team) {
@@ -103,6 +106,7 @@ async function start() {
         Common.settingsStore.addEventListener('changed', event => {
             const changed = event.data.changed;
             if (['scoreFts', 'scoreFal', 'scoreFin', 'scorePbp'].some(key => changed.has(key))) scoreAndRender();
+            if (changed.has('leaderboardView')) render();
         });
         await Common.subscribe('athlete/self', onAthlete, {persistent: true});
         athlete ||= await Common.rpc.getAthleteData('self').catch(() => null);

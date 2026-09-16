@@ -19,7 +19,7 @@ FAL is awarded on every pass: first earns the number of riders who started, seco
 
 The field is taken from racers registered as joined in the active event subgroup and is frozen at the start, so the value of a FAL point cannot change mid-race. Final event results remove a rider who did not finish without promoting another rider’s FAL or FTS points, matching ZRL’s non-cascade rule. Manual post-race disqualifications are not exposed by Sauce’s live event API and therefore require the official result to supersede the overlay.
 
-Use the **⚙** button to choose which of FTS, FAL, FIN, and PBP is included in the leaderboard total. All four categories are enabled by default for ZRL scoring.
+Use the **⚙** button to choose which of FTS, FAL, FIN, and PBP is included in the leaderboard total. All four categories are enabled by default for ZRL scoring. The same settings window can show scores **by individual rider** or as a combined **team** total. Riders without a recorded team are grouped as **Unattached** in the team view.
 
 Use the filter box above the leaderboard to find a rider or team. The displayed place remains the rider's overall rank, even when the table is filtered.
 

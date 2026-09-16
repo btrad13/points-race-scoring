@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachResults, filterLeaderboard, finishPoints, raceField, scoreInstances, segmentInstances} from '../pages/model.mjs';
+import {attachResults, filterLeaderboard, finishPoints, raceField, scoreInstances, segmentInstances, teamLeaderboard} from '../pages/model.mjs';
 
 test('field uses joined entrants, including their team, and keeps the local rider', () => {
     const field = raceField([{id: 2, athlete: {fullname: 'B Rider', team: 'Fast Cats'}}, {id: 2, athlete: {fullname: 'B Rider'}}], {athleteId: 1, fullname: 'A Rider', team: 'Velocity'});
@@ -11,6 +11,19 @@ test('leaderboard filtering matches rider or team and retains the overall place'
     const riders = [{name: 'Alex Rider', team: 'Velocity'}, {name: 'Bailey Climber', team: 'Ridge Racing'}, {name: 'Casey Watts', team: ''}];
     assert.deepEqual(filterLeaderboard(riders, 'Ridge').map(x => [x.name, x.place]), [['Bailey Climber', 2]]);
     assert.deepEqual(filterLeaderboard(riders, 'alex').map(x => [x.name, x.place]), [['Alex Rider', 1]]);
+});
+
+test('team leaderboard combines all rider categories and can filter by a member', () => {
+    const riders = [
+        {name: 'Alex Rider', team: 'Velocity', self: true, fastest: 15, first: 4, finish: 3, podium: 8, total: 30},
+        {name: 'Blake Rider', team: 'Velocity', fastest: 12, first: 3, finish: 2, podium: 6, total: 23},
+        {name: 'Casey Watts', team: '', fastest: 10, first: 2, finish: 1, podium: 0, total: 13},
+    ];
+    const teams = teamLeaderboard(riders);
+    assert.deepEqual(teams.map(x => [x.name, x.fastest, x.first, x.finish, x.podium, x.total, x.self]), [
+        ['Velocity', 27, 7, 5, 14, 53, true], ['Unattached', 10, 2, 1, 0, 13, false],
+    ]);
+    assert.deepEqual(filterLeaderboard(teams, 'blake').map(x => [x.name, x.place]), [['Velocity', 1]]);
 });
 
 test('uses field-size points for FAL and ZRL fixed top-ten FTS points', () => {

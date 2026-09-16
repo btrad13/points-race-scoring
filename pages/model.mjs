@@ -13,7 +13,35 @@ export function racerTeam(value) {
 export function filterLeaderboard(leaderboard, query) {
     const needle = String(query || '').trim().toLocaleLowerCase();
     return (Array.isArray(leaderboard) ? leaderboard : []).map((racer, index) => ({...racer, place: index + 1}))
-        .filter(racer => !needle || `${racer.name || ''} ${racer.team || ''}`.toLocaleLowerCase().includes(needle));
+        .filter(racer => !needle || `${racer.name || ''} ${racer.team || ''} ${racer.searchText || ''}`.toLocaleLowerCase().includes(needle));
+}
+
+function leaderboardOrder(a, b) {
+    return b.total - a.total || b.first - a.first || b.fastest - a.fastest || a.name.localeCompare(b.name);
+}
+
+// Team scores sum every enabled category earned by riders using that team name.
+// Riders without a supplied team remain visible as one explicit group.
+export function teamLeaderboard(leaderboard) {
+    const teams = new Map();
+    for (const racer of Array.isArray(leaderboard) ? leaderboard : []) {
+        const name = racer.team || 'Unattached';
+        let team = teams.get(name);
+        if (!team) {
+            team = {name, team: '', members: [], searchText: name, self: false,
+                fastest: 0, first: 0, finish: 0, podium: 0, total: 0};
+            teams.set(name, team);
+        }
+        team.members.push(racer.name);
+        team.searchText += ` ${racer.name}`;
+        team.self ||= Boolean(racer.self);
+        team.fastest += racer.fastest || 0;
+        team.first += racer.first || 0;
+        team.finish += racer.finish || 0;
+        team.podium += racer.podium || 0;
+        team.total += racer.total || 0;
+    }
+    return [...teams.values()].sort(leaderboardOrder);
 }
 
 export function raceField(entrants, self) {
@@ -202,6 +230,5 @@ export function scoreInstances(instances, racers, eligibleIds = null, eventResul
         }
         racer.total = racer.fastest + racer.first + racer.finish + racer.podium;
     }
-    return {scored, leaderboard: [...totals.values()].filter(racer => racer.eligible).sort((a, b) =>
-        b.total - a.total || b.first - a.first || b.fastest - a.fastest || a.name.localeCompare(b.name))};
+    return {scored, leaderboard: [...totals.values()].filter(racer => racer.eligible).sort(leaderboardOrder)};
 }
