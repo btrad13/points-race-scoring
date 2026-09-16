@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachResults, finishPoints, raceField, scoreInstances, segmentInstances} from '../pages/model.mjs';
+import {attachResults, filterLeaderboard, finishPoints, raceField, scoreInstances, segmentInstances} from '../pages/model.mjs';
 
 test('field uses joined entrants, including their team, and keeps the local rider', () => {
     const field = raceField([{id: 2, athlete: {fullname: 'B Rider', team: 'Fast Cats'}}, {id: 2, athlete: {fullname: 'B Rider'}}], {athleteId: 1, fullname: 'A Rider', team: 'Velocity'});
     assert.deepEqual(field.map(x => [x.athleteId, x.name, x.team, x.self]), [['1', 'A Rider', 'Velocity', true], ['2', 'B Rider', 'Fast Cats', false]]);
+});
+
+test('leaderboard filtering matches rider or team and retains the overall place', () => {
+    const riders = [{name: 'Alex Rider', team: 'Velocity'}, {name: 'Bailey Climber', team: 'Ridge Racing'}, {name: 'Casey Watts', team: ''}];
+    assert.deepEqual(filterLeaderboard(riders, 'Ridge').map(x => [x.name, x.place]), [['Bailey Climber', 2]]);
+    assert.deepEqual(filterLeaderboard(riders, 'alex').map(x => [x.name, x.place]), [['Alex Rider', 1]]);
 });
 
 test('uses field-size points for FAL and ZRL fixed top-ten FTS points', () => {

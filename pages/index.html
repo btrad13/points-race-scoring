@@ -10,7 +10,8 @@
 <main class="panel">
     <header><div class="drag-handle" title="Drag to move Race Segment Scores"></div><h1>Race Segment Scores</h1><a class="settings" href="settings.html?width=440&amp;height=420&amp;child-window" target="race-segment-scores-settings" aria-label="Open scoring settings" title="Open scoring settings">⚙</a></header>
     <p id="race-meta">Waiting for a race…</p>
-    <div class="head row"><span>#</span><span>Rider</span><span>FTS</span><span>FAL</span><span>FIN</span><span>PBP</span><span>Total</span></div>
+    <label class="filter"><span class="sr-only">Filter riders or teams</span><input id="filter" type="search" placeholder="Filter rider or team" autocomplete="off" spellcheck="false"></label>
+    <div class="head row"><span>Place</span><span>Rider</span><span>FTS</span><span>FAL</span><span>FIN</span><span>PBP</span><span>Total</span></div>
     <div id="leaderboard" aria-live="polite"></div>
     <p id="status" class="status"></p>
 </main>

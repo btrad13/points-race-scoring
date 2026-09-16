@@ -21,6 +21,8 @@ The field is taken from racers registered as joined in the active event subgroup
 
 Use the **⚙** button to choose which of FTS, FAL, FIN, and PBP is included in the leaderboard total. All four categories are enabled by default for ZRL scoring.
 
+Use the filter box above the leaderboard to find a rider or team. The displayed place remains the rider's overall rank, even when the table is filtered.
+
 ## Segment and lap handling
 
 Sauce records each observed segment crossing with its event distance. The mod uses that distance to keep the same segment on a later lap separate, then matches Zwift’s official segment results to that occurrence. The final table only counts results from the active event field and current event time range.

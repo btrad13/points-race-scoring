@@ -10,6 +10,12 @@ export function racerTeam(value) {
     return typeof athlete.team === 'string' ? athlete.team.trim() : '';
 }
 
+export function filterLeaderboard(leaderboard, query) {
+    const needle = String(query || '').trim().toLocaleLowerCase();
+    return (Array.isArray(leaderboard) ? leaderboard : []).map((racer, index) => ({...racer, place: index + 1}))
+        .filter(racer => !needle || `${racer.name || ''} ${racer.team || ''}`.toLocaleLowerCase().includes(needle));
+}
+
 export function raceField(entrants, self) {
     const racers = new Map();
     for (const entrant of Array.isArray(entrants) ? entrants : []) {

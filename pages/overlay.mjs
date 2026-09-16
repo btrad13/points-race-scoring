@@ -1,10 +1,11 @@
-import {attachResults, raceField, scoreInstances, segmentInstances} from './model.mjs';
+import {attachResults, filterLeaderboard, raceField, scoreInstances, segmentInstances} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const demo = new URLSearchParams(location.search).get('demo') === '1';
 let Common, athlete, stopped = false, updateBusy = false, updateTimer, retryTimer;
 let sessionKey = null, frozenField = null, latest = {racers: [], scored: [], leaderboard: []};
 let scoringInput = null;
+let filter = '';
 const defaults = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true};
 
 function subgroupId() {
@@ -26,14 +27,17 @@ function scoreAndRender(message) {
 function render(message) {
     $('leaderboard').replaceChildren();
     const {racers, scored, leaderboard} = latest;
-    $('race-meta').textContent = racers.length ? `${racers.length} racer${racers.length === 1 ? '' : 's'} · ${scored.length} segment crossing${scored.length === 1 ? '' : 's'} scored` : 'Waiting for a race…';
+    const visible = filterLeaderboard(leaderboard, filter);
+    $('race-meta').textContent = racers.length ? `${racers.length} racer${racers.length === 1 ? '' : 's'} · ${scored.length} segment crossing${scored.length === 1 ? '' : 's'} scored${filter ? ` · ${visible.length} matching` : ''}` : 'Waiting for a race…';
     $('status').textContent = message || (scored.length ? 'FTS = fastest through · FAL = first across the line' : 'Points appear when the first segment result arrives.');
-    if (!leaderboard.length) {
-        const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = message || 'Join a group race to load its field and segment results.'; $('leaderboard').append(empty); return;
+    if (!visible.length) {
+        const empty = document.createElement('p'); empty.className = 'empty';
+        empty.textContent = leaderboard.length && filter ? 'No rider or team matches that filter.' : message || 'Join a group race to load its field and segment results.';
+        $('leaderboard').append(empty); return;
     }
-    leaderboard.forEach((racer, index) => {
+    visible.forEach(racer => {
         const row = document.createElement('article'); row.className = `row racer${racer.self ? ' self' : ''}`;
-        for (const [className, value] of [['place', index + 1], ['name', racer.name], ['fastest', racer.fastest], ['first', racer.first], ['finish', racer.finish], ['podium', racer.podium], ['total', racer.total]]) {
+        for (const [className, value] of [['place', racer.place], ['name', racer.name], ['fastest', racer.fastest], ['first', racer.first], ['finish', racer.finish], ['podium', racer.podium], ['total', racer.total]]) {
             const cell = document.createElement('span'); cell.className = className; cell.textContent = String(value);
             if (className === 'name' && racer.team) {
                 const team = document.createElement('span'); team.className = 'team'; team.textContent = ` · ${racer.team}`; cell.append(team);
@@ -90,6 +94,7 @@ async function update() {
 }
 
 const onAthlete = value => { athlete = value; update(); };
+$('filter').addEventListener('input', event => { filter = event.target.value; render(); });
 
 async function start() {
     try {
