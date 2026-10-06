@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachResults, filterLeaderboard, finishPoints, raceField, scoreInstances, segmentInstances, teamLeaderboard} from '../pages/model.mjs';
+import {attachResults, filterLeaderboard, finishPoints, officialEligibleIds, raceField, scoreInstances, segmentInstances, shouldPollOfficialResults, teamLeaderboard, usableOfficialResults} from '../pages/model.mjs';
 
 test('field uses joined entrants, including their team, and keeps the local rider', () => {
     const field = raceField([{id: 2, athlete: {fullname: 'B Rider', team: 'Fast Cats'}}, {id: 2, athlete: {fullname: 'B Rider'}}], {athleteId: 1, fullname: 'A Rider', team: 'Velocity'});
@@ -65,6 +65,18 @@ test('FIN uses the starter field while PBP awards the top five finishers', () =>
     assert.deepEqual([...finishPoints(results, racers)], [['2', {finish: 4, podium: 10}], ['1', {finish: 3, podium: 8}], ['4', {finish: 2, podium: 6}]]);
     const {leaderboard} = scoreInstances([], racers, new Set(['1', '2', '4']), results);
     assert.deepEqual(leaderboard.map(x => [x.athleteId, x.finish, x.podium, x.total]), [['2', 4, 10, 14], ['1', 3, 8, 11], ['4', 2, 6, 8]]);
+});
+
+test('official finish results are used before the estimated finish but pending riders stay visible', () => {
+    const racers = raceField([{id: 1, athlete: {fullname: 'A'}}, {id: 2, athlete: {fullname: 'B'}}, {id: 3, athlete: {fullname: 'C'}}]);
+    const subgroup = {id: 4, ts: 1_000_000, estimatedFinish: 2_000_000};
+    const partial = [{profileId: 2, rank: 1}, {profileId: 1, dnf: true, pending: true}, {profileId: 3, dnf: true, pending: true}];
+    assert.equal(shouldPollOfficialResults(subgroup, subgroup.ts + 299_999), false);
+    assert.equal(shouldPollOfficialResults(subgroup, subgroup.ts + 300_000), true);
+    assert.deepEqual(usableOfficialResults(partial, racers).map(x => x.profileId), [2, 1, 3]);
+    assert.equal(officialEligibleIds(partial, racers, subgroup, subgroup.ts + 300_000), null);
+    assert.deepEqual([...officialEligibleIds(partial, racers, subgroup, subgroup.estimatedFinish)], ['2']);
+    assert.deepEqual([...officialEligibleIds([{profileId: 2, rank: 1}, {profileId: 1, dnf: true}, {profileId: 3, dnf: true}], racers, subgroup, subgroup.ts + 300_000)], ['2']);
 });
 
 test('disabled scoring categories are excluded from the total without changing the race results', () => {

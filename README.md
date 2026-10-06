@@ -17,7 +17,7 @@ FAL is awarded on every pass: first earns the number of riders who started, seco
 2. Restart or reload Sauce, add **Race Segment Scores**, and join a group race.
 3. Keep the overlay open through the race. It refreshes every 15 seconds as Zwift publishes segment results.
 
-The field is taken from racers registered as joined in the active event subgroup and is frozen at the start, so the value of a FAL point cannot change mid-race. Final event results remove a rider who did not finish without promoting another rider’s FAL or FTS points, matching ZRL’s non-cascade rule. Manual post-race disqualifications are not exposed by Sauce’s live event API and therefore require the official result to supersede the overlay.
+The field is taken from racers registered as joined in the active event subgroup and is frozen at the start, so the value of a FAL point cannot change mid-race. FIN and PBP appear when Sauce publishes real finish results, normally shortly after the first riders finish; the overlay continues checking after Zwift clears the active race. Final event results remove a rider who did not finish without promoting another rider’s FAL or FTS points, matching ZRL’s non-cascade rule. Manual post-race disqualifications are not exposed by Sauce’s live event API and therefore require the official result to supersede the overlay.
 
 Use the **⚙** button to choose which of FTS, FAL, FIN, and PBP is included in the leaderboard total. All four categories are enabled by default for ZRL scoring. Use the **Riders** and **Teams** buttons beside the filter to switch between individual riders and combined team totals. Riders without a recorded team are grouped as **Unattached** in the team view.
 

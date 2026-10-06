@@ -1,4 +1,4 @@
-import {attachResults, filterLeaderboard, raceField, scoreInstances, segmentInstances, teamLeaderboard} from './model.mjs';
+import {attachResults, filterLeaderboard, officialEligibleIds, raceField, scoreInstances, segmentInstances, shouldPollOfficialResults, teamLeaderboard, usableOfficialResults} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const demo = new URLSearchParams(location.search).get('demo') === '1';
@@ -23,6 +23,20 @@ function scoreAndRender(message) {
     const scored = scoreInstances(scoringInput.instances, scoringInput.racers, scoringInput.eligibleIds,
         scoringInput.official, scoringSettings());
     latest = {...scored, racers: scoringInput.racers}; render(message);
+}
+
+async function officialScoreData(subgroup, racers, now) {
+    if (!shouldPollOfficialResults(subgroup, now)) return null;
+    const results = await Common.rpc.getEventSubgroupResults(subgroup.id).catch(() => null);
+    const official = usableOfficialResults(results, racers);
+    return official ? {official, eligibleIds: officialEligibleIds(official, racers, subgroup, now)} : null;
+}
+
+function preserveOfficialScoreData(data, previous = scoringInput) {
+    return {
+        official: data?.official || previous?.official || null,
+        eligibleIds: data?.eligibleIds || previous?.eligibleIds || null,
+    };
 }
 
 function render(message) {
@@ -58,9 +72,16 @@ async function update() {
     try {
         const id = subgroupId();
         if (!id) {
-            // Keep the completed race table visible through the cooldown.  A new
-            // subgroup replaces it automatically when the rider joins again.
-            if (latest.scored.length) return render('Race complete — final points shown.');
+            // Zwift can clear the active subgroup before its result endpoint is
+            // populated. Keep polling the saved event so FIN/PBP can arrive.
+            if (scoringInput?.subgroup) {
+                const now = await Common.getRealTime();
+                const data = await officialScoreData(scoringInput.subgroup, scoringInput.racers, now);
+                if (data) Object.assign(scoringInput, preserveOfficialScoreData(data));
+                return scoreAndRender(scoringInput.eligibleIds ? 'Race complete — final points shown.' :
+                    data?.official ? 'Race complete — official finish results updating.' :
+                        'Race complete — waiting for official finish results.');
+            }
             latest = {racers: [], scored: [], leaderboard: []}; scoringInput = null; frozenField = null; sessionKey = null;
             return render('Join a group race to begin scoring.');
         }
@@ -86,12 +107,12 @@ async function update() {
         const resultsBySegment = new Map(await Promise.all(segmentIds.map(async segmentId => [segmentId,
             await Common.rpc.getSegmentResults(segmentId, {from: subgroup.ts, to: Math.min(now, subgroup.estimatedFinish || now)}).catch(() => [])])));
         const resolved = attachResults(instances, resultsBySegment, fieldIds);
-        let eligibleIds = null, official = null;
-        if (subgroup.estimatedFinish && now >= subgroup.estimatedFinish) {
-            official = await Common.rpc.getEventSubgroupResults(id).catch(() => null);
-            if (Array.isArray(official) && official.length) eligibleIds = new Set(official.filter(x => !x.dnf).map(x => String(x.profileId)));
-        }
-        scoringInput = {instances: resolved, racers: currentField, eligibleIds, official}; scoreAndRender();
+        const data = await officialScoreData(subgroup, currentField, now);
+        const previous = scoringInput?.sessionKey === key ? scoringInput : null;
+        const preserved = preserveOfficialScoreData(data, previous);
+        scoringInput = {instances: resolved, racers: currentField, subgroup, sessionKey: key,
+            eligibleIds: preserved.eligibleIds, official: preserved.official};
+        scoreAndRender(data?.official ? 'Official finish results updating.' : undefined);
     } catch (error) {
         render('Could not refresh race segment results; retrying.');
     } finally { updateBusy = false; }

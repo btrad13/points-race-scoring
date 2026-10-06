@@ -4,7 +4,7 @@
   "description": "Live fastest-through and first-across points for Zwift race segments.",
   "author": "Sauce4ZwiftMod",
   "website_url": "https://github.com/btrad13/points-race-scoring",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "web_root": "pages",
   "windows": [
     {

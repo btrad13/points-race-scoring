@@ -145,6 +145,37 @@ export function attachResults(instances, resultsBySegment, fieldIds) {
 export const FTS_POINTS = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1];
 export const PODIUM_BONUS_POINTS = [10, 8, 6, 4, 2];
 export const DEFAULT_SCORING = {scoreFts: true, scoreFal: true, scoreFin: true, scorePbp: true};
+export const OFFICIAL_RESULTS_DELAY = 5 * 60 * 1000;
+
+function resultAthleteId(result) {
+    const id = result?.profileId ?? result?.athleteId;
+    return id == null ? null : String(id);
+}
+
+// Sauce itself starts checking for published event results five minutes after
+// the start. The estimate is deliberately not a gate: it is based on route
+// distance and can be later than a fast race's actual finish.
+export function shouldPollOfficialResults(subgroup, now) {
+    const start = Number(subgroup?.ts);
+    return Number.isFinite(start) && Number.isFinite(Number(now)) && Number(now) >= start + OFFICIAL_RESULTS_DELAY;
+}
+
+export function usableOfficialResults(results, racers) {
+    const fieldIds = new Set((Array.isArray(racers) ? racers : []).map(racer => String(racer.athleteId)));
+    const relevant = (Array.isArray(results) ? results : []).filter(result => fieldIds.has(resultAthleteId(result)));
+    return relevant.some(result => !result.dnf) ? relevant : null;
+}
+
+// Do not prune the live table merely because Sauce has published the first few
+// finishers. Pending DNF records become final only after the event estimate, or
+// when Sauce reports that no riders remain pending.
+export function officialEligibleIds(results, racers, subgroup, now) {
+    const official = usableOfficialResults(results, racers);
+    if (!official) return null;
+    const estimate = Number(subgroup?.estimatedFinish);
+    const settled = (Number.isFinite(estimate) && Number(now) >= estimate) || !official.some(result => result.pending);
+    return settled ? new Set(official.filter(result => !result.dnf).map(resultAthleteId)) : null;
+}
 
 function falPoints(results, fieldSize) {
     const ordered = [...results.values()].sort((a, b) => Number(a.ts) - Number(b.ts) ||
